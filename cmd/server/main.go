@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/vv/meeting-room-booking/internal/config"
-	"github.com/vv/meeting-room-booking/internal/httpapi"
-	"github.com/vv/meeting-room-booking/internal/storage"
+	"github.com/AnneeAvakyan/meeting-rooms/internal/config"
+	"github.com/AnneeAvakyan/meeting-rooms/internal/httpapi"
+	"github.com/AnneeAvakyan/meeting-rooms/internal/storage"
 )
 
 func main() {
