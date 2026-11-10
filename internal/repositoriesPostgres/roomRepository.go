@@ -1,49 +1,49 @@
-package repositories
+package repositoriesPostgres
 
 import (
 	"context"
 	"errors"
 
-	"github.com/AnneeAvakyan/meeting-rooms/internal/room"
-	"github.com/AnneeAvakyan/meeting-rooms/internal/storage"
+	"github.com/AnneeAvakyan/meeting-rooms/domain/models"
+	"github.com/AnneeAvakyan/meeting-rooms/myErrors"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type RoomRepository struct {
+type RoomRepositoryPostgres struct {
 	pool *pgxpool.Pool
 }
 
-func NewRoomRepository(pool *pgxpool.Pool) *RoomRepository {
-	return &RoomRepository{pool}
+func NewRoomRepository(pool *pgxpool.Pool) *RoomRepositoryPostgres {
+	return &RoomRepositoryPostgres{pool}
 }
 
-func (r *RoomRepository) List(ctx context.Context) ([]room.Room, error) {
+func (r *RoomRepositoryPostgres) List(ctx context.Context) ([]models.Room, error) {
 	rows, err := r.pool.Query(ctx, `SELECT id, name, capacity, equipment, created_at FROM rooms`)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, pgx.RowToStructByName[room.Room])
+	return pgx.CollectRows(rows, pgx.RowToStructByName[models.Room])
 }
 
-func (r *RoomRepository) GetByID(ctx context.Context, id int64) (*room.Room, error) {
+func (r *RoomRepositoryPostgres) GetByID(ctx context.Context, id int64) (*models.Room, error) {
 	gotRoom, err := r.pool.Query(ctx, `SELECT id, name, capacity, equipment, created_at FROM rooms 
         WHERE id = $1`, id)
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := pgx.CollectExactlyOneRow(gotRoom, pgx.RowToStructByName[room.Room])
+	result, err := pgx.CollectExactlyOneRow(gotRoom, pgx.RowToStructByName[models.Room])
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, storage.ErrNotFound
+			return nil, myErrors.ErrNotFound
 		}
 		return nil, err
 	}
 	return &result, nil
 }
 
-func (r *RoomRepository) Create(ctx context.Context, newRoom *room.Room) error {
+func (r *RoomRepositoryPostgres) Create(ctx context.Context, newRoom *models.Room) error {
 	row := r.pool.QueryRow(ctx, `INSERT INTO rooms (name, capacity, equipment) 
 		VALUES ($1, $2, $3)
 		RETURNING id, created_at`,
@@ -51,18 +51,18 @@ func (r *RoomRepository) Create(ctx context.Context, newRoom *room.Room) error {
 	return row.Scan(&newRoom.ID, &newRoom.CreatedAt)
 }
 
-func (r *RoomRepository) Delete(ctx context.Context, id int64) error {
+func (r *RoomRepositoryPostgres) Delete(ctx context.Context, id int64) error {
 	tag, err := r.pool.Exec(ctx, `DELETE FROM rooms WHERE id = $1`, id)
 	if err != nil {
 		return err
 	}
 	if tag.RowsAffected() == 0 {
-		return storage.ErrNotFound
+		return myErrors.ErrNotFound
 	}
 	return nil
 }
 
-func (r *RoomRepository) Update(ctx context.Context, newRoom *room.Room) error {
+func (r *RoomRepositoryPostgres) Update(ctx context.Context, newRoom *models.Room) error {
 	row := r.pool.QueryRow(ctx, `UPDATE rooms
 		SET name = $1, capacity = $2, equipment = $3
 		WHERE id = $4
@@ -71,7 +71,7 @@ func (r *RoomRepository) Update(ctx context.Context, newRoom *room.Room) error {
 
 	if err := row.Scan(&newRoom.ID, &newRoom.CreatedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return storage.ErrNotFound
+			return myErrors.ErrNotFound
 		}
 		return err
 	}

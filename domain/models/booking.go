@@ -1,4 +1,4 @@
-package booking
+package models
 
 import (
 	"errors"
@@ -12,6 +12,11 @@ const (
 	StatusCancelled Status = "cancelled"
 )
 
+var (
+	ErrInvalidInterval = errors.New("start_time must be before end_time")
+	ErrOverlap         = errors.New("service overlaps with an existing one")
+)
+
 type Booking struct {
 	ID        int64     `json:"id" db:"id"`
 	RoomID    int64     `json:"room_id" db:"room_id"`
@@ -22,23 +27,18 @@ type Booking struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
-var (
-	ErrInvalidInterval = errors.New("start_time must be before end_time")
-	ErrOverlap         = errors.New("booking overlaps with an existing one")
-)
+func (b Booking) Overlaps(other Booking) bool {
+	if b.RoomID != other.RoomID {
+		return false
+	}
+	return b.StartTime.Before(other.EndTime) && other.StartTime.Before(b.EndTime)
+}
 
 func (b Booking) Validate() error {
 	if !b.StartTime.Before(b.EndTime) {
 		return ErrInvalidInterval
 	}
 	return nil
-}
-
-func (b Booking) Overlaps(other Booking) bool {
-	if b.RoomID != other.RoomID {
-		return false
-	}
-	return b.StartTime.Before(other.EndTime) && other.StartTime.Before(b.EndTime)
 }
 
 func HasOverlap(candidate Booking, existing []Booking) bool {

@@ -5,7 +5,7 @@ services:
       - "8080:8080"
     environment:
       APP_PORT: 8080
-      DATABASE_URL: postgres://postgres:postgres@db:5432/booking?sslmode=disable
+      DATABASE_URL: postgres://postgres:postgres@db:5432/service?sslmode=disable
     depends_on:
       db:
         condition: service_healthy
@@ -18,7 +18,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: booking
+      POSTGRES_DB: service
     ports:
       - "5432:5432"
     volumes:
