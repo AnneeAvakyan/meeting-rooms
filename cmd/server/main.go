@@ -6,25 +6,15 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/vv/meeting-room-booking/internal/config"
-	"github.com/vv/meeting-room-booking/internal/httpapi"
-	"github.com/vv/meeting-room-booking/internal/storage"
+	"github.com/AnneeAvakyan/meeting-rooms/internal/config"
+	"github.com/AnneeAvakyan/meeting-rooms/internal/httpapi"
 )
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	cfg := config.Load()
 
-	// На старте используется in-memory хранилище (см. internal/storage/memory.go).
-	// TODO: заменить на PostgreSQL-репозиторий, реализующий те же интерфейсы
-	// storage.RoomRepository / storage.BookingRepository, когда будет готова БД.
-	store := storage.NewMemoryStore()
-
-	srv := &httpapi.Server{
-		Rooms:    store,
-		Bookings: store,
-		Logger:   logger,
-	}
+	srv := &httpapi.Server{}
 
 	addr := ":" + cfg.Port
 	logger.Info("starting server", "addr", addr)

@@ -8,13 +8,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/vv/meeting-room-booking/internal/booking"
-	"github.com/vv/meeting-room-booking/internal/storage"
+	"github.com/AnneeAvakyan/meeting-rooms/domain/models"
+	"github.com/AnneeAvakyan/meeting-rooms/domain/repository"
+	errors2 "github.com/AnneeAvakyan/meeting-rooms/myErrors"
 )
 
 type Server struct {
-	Rooms    storage.RoomRepository
-	Bookings storage.BookingRepository
+	Rooms    repository.RoomRepository
+	Bookings repository.BookingRepository
 	Logger   *slog.Logger
 }
 
@@ -39,7 +40,7 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listRooms(w http.ResponseWriter, r *http.Request) {
-	rooms, err := s.Rooms.List()
+	rooms, err := s.Rooms.List(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -54,13 +55,13 @@ func (s *Server) findAvailableRooms(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rooms, err := s.Rooms.List()
+	rooms, err := s.Rooms.List(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	candidate := booking.Booking{StartTime: from, EndTime: to}
+	candidate := models.Booking{StartTime: from, EndTime: to}
 
 	var free []int64
 	for _, rm := range rooms {
@@ -71,7 +72,7 @@ func (s *Server) findAvailableRooms(w http.ResponseWriter, r *http.Request) {
 		}
 		c := candidate
 		c.RoomID = rm.ID
-		if !booking.HasOverlap(c, existing) {
+		if !models.HasOverlap(c, existing) {
 			free = append(free, rm.ID)
 		}
 	}
@@ -106,12 +107,12 @@ func (s *Server) createBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b := booking.Booking{
+	b := models.Booking{
 		RoomID:    req.RoomID,
 		UserID:    req.UserID,
 		StartTime: req.StartTime,
 		EndTime:   req.EndTime,
-		Status:    booking.StatusActive,
+		Status:    models.StatusActive,
 	}
 	if err := b.Validate(); err != nil {
 		writeError(w, http.StatusUnprocessableEntity, err)
@@ -123,8 +124,8 @@ func (s *Server) createBooking(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	if booking.HasOverlap(b, existing) {
-		writeError(w, http.StatusConflict, booking.ErrOverlap)
+	if models.HasOverlap(b, existing) {
+		writeError(w, http.StatusConflict, models.ErrOverlap)
 		return
 	}
 
@@ -139,7 +140,7 @@ func (s *Server) createBooking(w http.ResponseWriter, r *http.Request) {
 func (s *Server) updateBooking(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, errors.New("invalid booking id"))
+		writeError(w, http.StatusBadRequest, errors.New("invalid service id"))
 		return
 	}
 
@@ -149,13 +150,13 @@ func (s *Server) updateBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b := booking.Booking{
+	b := models.Booking{
 		ID:        id,
 		RoomID:    req.RoomID,
 		UserID:    req.UserID,
 		StartTime: req.StartTime,
 		EndTime:   req.EndTime,
-		Status:    booking.StatusActive,
+		Status:    models.StatusActive,
 	}
 	if err := b.Validate(); err != nil {
 		writeError(w, http.StatusUnprocessableEntity, err)
@@ -167,14 +168,14 @@ func (s *Server) updateBooking(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	if booking.HasOverlap(b, existing) {
-		writeError(w, http.StatusConflict, booking.ErrOverlap)
+	if models.HasOverlap(b, existing) {
+		writeError(w, http.StatusConflict, models.ErrOverlap)
 		return
 	}
 
 	updated, err := s.Bookings.Update(b)
 	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
+		if errors.Is(err, errors2.ErrNotFound) {
 			writeError(w, http.StatusNotFound, err)
 			return
 		}
@@ -187,11 +188,11 @@ func (s *Server) updateBooking(w http.ResponseWriter, r *http.Request) {
 func (s *Server) cancelBooking(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, errors.New("invalid booking id"))
+		writeError(w, http.StatusBadRequest, errors.New("invalid service id"))
 		return
 	}
 	if err := s.Bookings.Cancel(id); err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
+		if errors.Is(err, errors2.ErrNotFound) {
 			writeError(w, http.StatusNotFound, err)
 			return
 		}

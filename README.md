@@ -16,10 +16,10 @@
 ## Технологический стек
 
 - **Язык:** Go
-- **HTTP:** net/http + `chi` (или `gin`/`echo` — выбрать один)
-- **БД:** PostgreSQL (prod), SQLite (для локальной разработки/тестов)
-- **Доступ к БД:** `sqlx` или `pgx`, миграции через `goose`/`golang-migrate`
-- **Конфигурация:** переменные окружения (`.env` + `viper`/`envconfig`)
+- **HTTP:** net/http + `chi` 
+- **БД:** PostgreSQL 
+- **Доступ к БД:** `pgx`, миграции через `golang-migrate`
+- **Конфигурация:** переменные окружения (`.env`)
 - **Контейнеризация:** Docker, docker-compose (приложение + Postgres)
 - **Тестирование:** стандартный `testing`, `testify`
 - **Документация API:** OpenAPI/Swagger (`swaggo`)
