@@ -19,6 +19,7 @@
 - **HTTP:** net/http + `chi` 
 - **БД:** PostgreSQL 
 - **Доступ к БД:** `pgx`, миграции через `golang-migrate`
+- **Авторизация:** middleware `jwt`
 - **Конфигурация:** переменные окружения (`.env`)
 - **Контейнеризация:** Docker, docker-compose (приложение + Postgres)
 - **Тестирование:** стандартный `testing`, `testify`
@@ -30,11 +31,13 @@
 .
 ├── cmd/
 │   └── server/            # main.go, точка входа
+│ 
+├── domain/
+│   ├── models/            # модели
+│   ├── repository/        # интерфейсы репозиториев
+│
 ├── internal/
-│   ├── booking/            # бизнес-логика бронирования
-│   ├── room/                # переговорные комнаты
-│   ├── user/                 # пользователи
-│   ├── storage/            # репозитории, работа с БД
+│   ├── repositoriesPostgres/  # реализация репозиториев
 │   ├── httpapi/             # хендлеры, роутинг, middleware
 │   └── report/              # формирование отчётов
 ├── migrations/             # sql-миграции
@@ -56,7 +59,7 @@ API будет доступен на `http://localhost:8080`.
 
 ## Основные сущности
 
-- **User** — id, имя, email, роль
+- **User** — id, имя, email, роль, пароль (хэш)
 - **Room** — id, название, вместимость, оборудование
 - **Booking** — id, room_id, user_id, start_time, end_time, status, created_at
 
