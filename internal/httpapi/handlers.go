@@ -10,7 +10,7 @@ import (
 
 	"github.com/AnneeAvakyan/meeting-rooms/domain/models"
 	"github.com/AnneeAvakyan/meeting-rooms/domain/repository"
-	errors2 "github.com/AnneeAvakyan/meeting-rooms/myErrors"
+	"github.com/AnneeAvakyan/meeting-rooms/myErrors"
 )
 
 type Server struct {
@@ -65,7 +65,7 @@ func (s *Server) findAvailableRooms(w http.ResponseWriter, r *http.Request) {
 
 	var free []int64
 	for _, rm := range rooms {
-		existing, err := s.Bookings.ListByRoom(rm.ID)
+		existing, err := s.Bookings.ListByRoom(r.Context(), rm.ID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
@@ -85,7 +85,7 @@ func (s *Server) roomCalendar(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("invalid room id"))
 		return
 	}
-	bookings, err := s.Bookings.ListByRoom(id)
+	bookings, err := s.Bookings.ListByRoom(r.Context(), id)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -119,22 +119,25 @@ func (s *Server) createBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	existing, err := s.Bookings.ListByRoom(b.RoomID)
+	existing, err := s.Bookings.ListByRoom(r.Context(), b.RoomID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	if models.HasOverlap(b, existing) {
-		writeError(w, http.StatusConflict, models.ErrOverlap)
+		writeError(w, http.StatusConflict, myErrors.ErrOverlap)
 		return
 	}
 
-	created, err := s.Bookings.Create(b)
-	if err != nil {
+	if err := s.Bookings.Create(r.Context(), &b); err != nil {
+		if errors.Is(err, myErrors.ErrOverlap) {
+			writeError(w, http.StatusConflict, err)
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, created)
+	writeJSON(w, http.StatusCreated, b)
 }
 
 func (s *Server) updateBooking(w http.ResponseWriter, r *http.Request) {
@@ -163,26 +166,29 @@ func (s *Server) updateBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	existing, err := s.Bookings.ListByRoom(b.RoomID)
+	existing, err := s.Bookings.ListByRoom(r.Context(), b.RoomID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	if models.HasOverlap(b, existing) {
-		writeError(w, http.StatusConflict, models.ErrOverlap)
+		writeError(w, http.StatusConflict, myErrors.ErrOverlap)
 		return
 	}
 
-	updated, err := s.Bookings.Update(b)
-	if err != nil {
-		if errors.Is(err, errors2.ErrNotFound) {
+	if err := s.Bookings.Update(r.Context(), &b); err != nil {
+		if errors.Is(err, myErrors.ErrNotFound) {
 			writeError(w, http.StatusNotFound, err)
+			return
+		}
+		if errors.Is(err, myErrors.ErrOverlap) {
+			writeError(w, http.StatusConflict, err)
 			return
 		}
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, updated)
+	writeJSON(w, http.StatusOK, b)
 }
 
 func (s *Server) cancelBooking(w http.ResponseWriter, r *http.Request) {
@@ -191,8 +197,8 @@ func (s *Server) cancelBooking(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("invalid service id"))
 		return
 	}
-	if err := s.Bookings.Cancel(id); err != nil {
-		if errors.Is(err, errors2.ErrNotFound) {
+	if err := s.Bookings.Cancel(r.Context(), id); err != nil {
+		if errors.Is(err, myErrors.ErrNotFound) {
 			writeError(w, http.StatusNotFound, err)
 			return
 		}

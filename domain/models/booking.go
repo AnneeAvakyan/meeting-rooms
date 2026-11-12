@@ -1,8 +1,9 @@
 package models
 
 import (
-	"errors"
 	"time"
+
+	"github.com/AnneeAvakyan/meeting-rooms/myErrors"
 )
 
 type Status string
@@ -10,11 +11,6 @@ type Status string
 const (
 	StatusActive    Status = "active"
 	StatusCancelled Status = "cancelled"
-)
-
-var (
-	ErrInvalidInterval = errors.New("start_time must be before end_time")
-	ErrOverlap         = errors.New("service overlaps with an existing one")
 )
 
 type Booking struct {
@@ -36,7 +32,7 @@ func (b Booking) Overlaps(other Booking) bool {
 
 func (b Booking) Validate() error {
 	if !b.StartTime.Before(b.EndTime) {
-		return ErrInvalidInterval
+		return myErrors.ErrInvalidInterval
 	}
 	return nil
 }
