@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/AnneeAvakyan/meeting-rooms/domain/models"
+	"github.com/AnneeAvakyan/meeting-rooms/myErrors"
 )
 
 func mkBooking(id, roomID int64, startOffset, endOffset time.Duration, status models.Status) models.Booking {
@@ -116,7 +117,7 @@ func TestValidate(t *testing.T) {
 	}
 
 	invalid := models.Booking{StartTime: base, EndTime: base}
-	if err := invalid.Validate(); err != models.ErrInvalidInterval {
+	if err := invalid.Validate(); err != myErrors.ErrInvalidInterval {
 		t.Errorf("expected ErrInvalidInterval, got: %v", err)
 	}
 }
