@@ -235,7 +235,14 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func writeError(w http.ResponseWriter, status int, err error) {
-	writeJSON(w, status, map[string]string{"error": err.Error()})
+	if status >= http.StatusInternalServerError {
+		slog.Error("internal server error", "error", err)
+		err = errors.New("internal server error")
+	}
+
+	writeJSON(w, status, map[string]string{
+		"error": err.Error(),
+	})
 }
 
 func loggingMiddleware(logger *slog.Logger, next http.Handler) http.Handler {
