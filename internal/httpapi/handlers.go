@@ -88,7 +88,7 @@ func (s *Server) createRoom(w http.ResponseWriter, r *http.Request) {
 	room := models.Room{
 		Name:      strings.TrimSpace(req.Name),
 		Capacity:  req.Capacity,
-		Equipment: req.Equipment,
+		Equipment: strings.TrimSpace(req.Equipment),
 	}
 
 	if err := s.Rooms.Create(r.Context(), &room); err != nil {
