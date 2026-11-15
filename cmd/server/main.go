@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/AnneeAvakyan/meeting-rooms/internal/auth"
 	"github.com/AnneeAvakyan/meeting-rooms/internal/config"
 	"github.com/AnneeAvakyan/meeting-rooms/internal/httpapi"
 	"github.com/AnneeAvakyan/meeting-rooms/internal/repositoriesPostgres"
+	"github.com/AnneeAvakyan/meeting-rooms/internal/services"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -31,11 +33,21 @@ func main() {
 
 	roomRepository := repositoriesPostgres.NewRoomRepository(pool)
 	bookingRepository := repositoriesPostgres.NewBookingRepositoryPostgres(pool)
+	userRepository := repositoriesPostgres.NewUserRepositoryPostgres(pool)
+	authManager, err := auth.NewTokenManager(cfg.Secret, cfg.TimeToLive)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+	userService := services.NewUserService(userRepository, authManager)
+	authHandlers := httpapi.NewAuthHandlers(userService, authManager)
 
 	srv := &httpapi.Server{
-		Rooms:    roomRepository,
-		Bookings: bookingRepository,
-		Logger:   logger,
+		Rooms:        roomRepository,
+		Bookings:     bookingRepository,
+		Users:        userRepository,
+		Logger:       logger,
+		AuthHandlers: authHandlers,
 	}
 
 	addr := ":" + cfg.Port
