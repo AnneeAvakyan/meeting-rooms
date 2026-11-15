@@ -2,6 +2,7 @@ package repositoriesPostgres
 
 import (
 	"context"
+	"errors"
 
 	"github.com/AnneeAvakyan/meeting-rooms/domain/models"
 	"github.com/AnneeAvakyan/meeting-rooms/myErrors"
@@ -17,6 +18,25 @@ func NewBookingRepositoryPostgres(pool *pgxpool.Pool) *BookingRepositoryPostgres
 	return &BookingRepositoryPostgres{pool}
 }
 
+func (r *BookingRepositoryPostgres) GetByID(ctx context.Context, id int64) (*models.Booking, error) {
+	rows, err := r.pool.Query(ctx, `SELECT id, room_id, user_id, start_time, end_time, status, created_at 
+	FROM bookings 
+	WHERE id = $1`, id)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[models.Booking])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, myErrors.ErrNotFound
+		}
+		return nil, err
+	}
+
+	return &result, nil
+}
+
 func (r *BookingRepositoryPostgres) Create(ctx context.Context, newBooking *models.Booking) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -24,7 +44,15 @@ func (r *BookingRepositoryPostgres) Create(ctx context.Context, newBooking *mode
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `SELECT id FROM rooms WHERE id = $1 FOR UPDATE`, newBooking.RoomID); err != nil {
+	var roomID int64
+
+	if err := tx.QueryRow(ctx,
+		`SELECT id FROM rooms WHERE id = $1 FOR UPDATE`,
+		newBooking.RoomID,
+	).Scan(&roomID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return myErrors.ErrNotFound
+		}
 		return err
 	}
 
@@ -37,7 +65,7 @@ func (r *BookingRepositoryPostgres) Create(ctx context.Context, newBooking *mode
 		return err
 	}
 
-	conflicts, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.Booking])
+	conflicts, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 	if err != nil {
 		return err
 	}
@@ -57,8 +85,12 @@ func (r *BookingRepositoryPostgres) Create(ctx context.Context, newBooking *mode
 	return tx.Commit(ctx)
 }
 
-func (r *BookingRepositoryPostgres) Cancel(ctx context.Context, id int64) error {
-	tag, err := r.pool.Exec(ctx, `UPDATE bookings SET status = 'cancelled' WHERE id = $1 AND status = 'active'`, id)
+func (r *BookingRepositoryPostgres) Cancel(ctx context.Context, userID int64, id int64) error {
+	tag, err := r.pool.Exec(ctx, `UPDATE bookings 
+	SET status = 'cancelled' 
+	WHERE id = $1 
+	AND status = 'active'
+	AND user_id = $2`, id, userID)
 	if err != nil {
 		return err
 	}
@@ -75,7 +107,15 @@ func (r *BookingRepositoryPostgres) Update(ctx context.Context, newBooking *mode
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `SELECT id FROM rooms WHERE id = $1 FOR UPDATE`, newBooking.RoomID); err != nil {
+	var roomID int64
+
+	if err := tx.QueryRow(ctx,
+		`SELECT id FROM rooms WHERE id = $1 FOR UPDATE`,
+		newBooking.RoomID,
+	).Scan(&roomID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return myErrors.ErrNotFound
+		}
 		return err
 	}
 
@@ -89,7 +129,7 @@ func (r *BookingRepositoryPostgres) Update(ctx context.Context, newBooking *mode
 		return err
 	}
 
-	conflicts, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.Booking])
+	conflicts, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 	if err != nil {
 		return err
 	}
@@ -99,12 +139,17 @@ func (r *BookingRepositoryPostgres) Update(ctx context.Context, newBooking *mode
 	}
 
 	row := tx.QueryRow(ctx, `UPDATE bookings 
-	SET user_id = $1, status = $2, start_time = $3, end_time = $4, room_id = $5
+	SET status = $2, start_time = $3, end_time = $4, room_id = $5
 	WHERE id = $6
+	AND user_id = $1
+	AND status = 'active'
 	RETURNING id, created_at`,
 		newBooking.UserID, newBooking.Status, newBooking.StartTime, newBooking.EndTime, newBooking.RoomID, newBooking.ID)
 
 	if err := row.Scan(&newBooking.ID, &newBooking.CreatedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return myErrors.ErrNotFound
+		}
 		return err
 	}
 	return tx.Commit(ctx)
