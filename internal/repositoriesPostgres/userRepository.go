@@ -28,12 +28,16 @@ func (r *UserRepositoryPostgres) Create(ctx context.Context, user *models.User) 
 	RETURNING id, created_at`, user.Name, user.Email, user.PasswordHash, user.Role)
 
 	err := row.Scan(&user.ID, &user.CreatedAt)
-	if errors.As(err, &pgErr) {
-		if pgErr.Code == "23505" {
-			return myErrors.ErrEmailExists
+	if err != nil {
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "23505" {
+				return myErrors.ErrEmailExists
+			}
 		}
+		return fmt.Errorf("create user: %w", err)
 	}
-	return fmt.Errorf("create user: %w", err)
+
+	return nil
 }
 
 func (r *UserRepositoryPostgres) GetByEmail(ctx context.Context, email string) (*models.User, error) {
