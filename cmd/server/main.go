@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	_ "github.com/AnneeAvakyan/meeting-rooms/docs"
 	"github.com/AnneeAvakyan/meeting-rooms/internal/auth"
 	"github.com/AnneeAvakyan/meeting-rooms/internal/config"
 	"github.com/AnneeAvakyan/meeting-rooms/internal/httpapi"
@@ -14,6 +15,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// @title Meeting Rooms Booking API
+// @version 1.0
+// @description REST API для бронирования переговорных комнат.
+// @description Поддерживает JWT-аутентификацию и роли employee/admin.
+// @host localhost:8080
+// @BasePath /
+//
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Введите Bearer и JWT-токен, например: Bearer eyJ...
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	cfg := config.Load()
