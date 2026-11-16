@@ -56,6 +56,18 @@ func NewAuthHandlers(userService *services.UserService, validator TokenValidator
 	}
 }
 
+// Login godoc
+// @Summary Авторизация пользователя
+// @Description Проверяет email и пароль и возвращает JWT
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body LoginRequest true "Данные пользователя"
+// @Success 200 {object} LoginResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /auth/login [post]
 func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 	var input LoginRequest
 	err := json.NewDecoder(r.Body).Decode(&input)
@@ -90,6 +102,18 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(loginResponse)
 }
 
+// Register godoc
+// @Summary Регистрация пользователя
+// @Description Создаёт пользователя с ролью employee
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body RegisterRequest true "Данные пользователя"
+// @Success 201 {object} RegisterResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 409 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /auth/register [post]
 func (h *AuthHandlers) Register(w http.ResponseWriter, r *http.Request) {
 	var input RegisterRequest
 	err := json.NewDecoder(r.Body).Decode(&input)

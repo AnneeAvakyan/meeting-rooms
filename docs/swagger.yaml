@@ -1,0 +1,515 @@
+basePath: /
+definitions:
+  httpapi.AvailableRoomsResponse:
+    properties:
+      available_room_ids:
+        items:
+          type: integer
+        type: array
+    type: object
+  httpapi.ErrorResponse:
+    properties:
+      error:
+        example: not found
+        type: string
+    type: object
+  httpapi.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  httpapi.LoginResponse:
+    properties:
+      token:
+        type: string
+      token_type:
+        type: string
+    type: object
+  httpapi.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+    type: object
+  httpapi.RegisterResponse:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      role:
+        $ref: '#/definitions/models.Role'
+    type: object
+  httpapi.createBookingRequest:
+    properties:
+      end_time:
+        type: string
+      room_id:
+        type: integer
+      start_time:
+        type: string
+    type: object
+  httpapi.createRoomRequest:
+    properties:
+      capacity:
+        type: integer
+      equipment:
+        type: string
+      name:
+        type: string
+    type: object
+  models.Booking:
+    properties:
+      created_at:
+        type: string
+      end_time:
+        type: string
+      id:
+        type: integer
+      room_id:
+        type: integer
+      start_time:
+        type: string
+      status:
+        $ref: '#/definitions/models.Status'
+      user_id:
+        type: integer
+    type: object
+  models.Role:
+    enum:
+    - employee
+    - admin
+    type: string
+    x-enum-varnames:
+    - RoleEmployee
+    - RoleAdmin
+  models.Room:
+    properties:
+      capacity:
+        type: integer
+      created_at:
+        type: string
+      equipment:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  models.Status:
+    enum:
+    - active
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - StatusActive
+    - StatusCancelled
+host: localhost:8080
+info:
+  contact: {}
+  description: |-
+    REST API для бронирования переговорных комнат.
+    Поддерживает JWT-аутентификацию и роли employee/admin.
+  title: Meeting Rooms Booking API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Проверяет email и пароль и возвращает JWT
+      parameters:
+      - description: Данные пользователя
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      summary: Авторизация пользователя
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Создаёт пользователя с ролью employee
+      parameters:
+      - description: Данные пользователя
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpapi.RegisterResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      summary: Регистрация пользователя
+      tags:
+      - Auth
+  /bookings:
+    post:
+      consumes:
+      - application/json
+      description: 'Создание бронирования с заданными параметрами: ID комнаты, время
+        начала, время конца. Доступно всем авторзованным пользователям'
+      parameters:
+      - description: Данные бронирования
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.createBookingRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Booking'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Создание бронирования
+      tags:
+      - Bookings
+  /bookings/{id}:
+    delete:
+      description: Отмена бронирования. Доступна только создателю бронирования
+      parameters:
+      - description: ID бронирования
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Отмена бронирования
+      tags:
+      - Bookings
+    put:
+      consumes:
+      - application/json
+      description: 'Изменение бронирования с заданными параметрами: ID комнаты, время
+        начала, время конца. Доступно всем авторзованным пользователям'
+      parameters:
+      - description: Данные бронирования
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.createBookingRequest'
+      - description: ID бронирования
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Booking'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Изменение бронирования
+      tags:
+      - Bookings
+  /healthz:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Проверка работоспособности сервиса
+      tags:
+      - Health
+  /rooms:
+    get:
+      description: Все созданные комнаты
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Room'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получение всех комнат
+      tags:
+      - Rooms
+    post:
+      consumes:
+      - application/json
+      description: 'Создание комнаты с заданными параметрами: название, вместимость
+        (чел), оборудование. Доступно только администратору'
+      parameters:
+      - description: Данные комнаты
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.createRoomRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Room'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Создание комнаты
+      tags:
+      - Rooms
+  /rooms/{id}/active:
+    get:
+      description: Получение только активных бронирований
+      parameters:
+      - description: ID комнаты
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Booking'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получение календаря активных бронирований для отдельной комнаты
+      tags:
+      - Rooms
+  /rooms/{id}/calendar:
+    get:
+      description: Получение всех бронирований, в том числе отмененнных
+      parameters:
+      - description: ID комнаты
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Booking'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получение календаря бронирований для отдельной комнаты
+      tags:
+      - Rooms
+  /rooms/available:
+    get:
+      description: Получение комнат, свободных в заданный промежуток
+      parameters:
+      - description: Начало интервала (RFC3339)
+        in: query
+        name: from
+        required: true
+        type: string
+      - description: Конец интервала (RFC3339)
+        in: query
+        name: to
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.AvailableRoomsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Поиск всех доступных комнат
+      tags:
+      - Rooms
+securityDefinitions:
+  BearerAuth:
+    description: 'Введите Bearer и JWT-токен, например: Bearer eyJ...'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -12,6 +12,7 @@ import (
 	"github.com/AnneeAvakyan/meeting-rooms/domain/models"
 	"github.com/AnneeAvakyan/meeting-rooms/domain/repository"
 	"github.com/AnneeAvakyan/meeting-rooms/myErrors"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 type Server struct {
@@ -22,6 +23,10 @@ type Server struct {
 	Logger       *slog.Logger
 }
 
+type ErrorResponse struct {
+	Error string `json:"error" example:"not found"`
+}
+
 func (s *Server) NewRouter() http.Handler {
 	authenticated := func(handler http.HandlerFunc) http.Handler {
 		return s.AuthHandlers.AuthMiddleware(handler)
@@ -29,6 +34,13 @@ func (s *Server) NewRouter() http.Handler {
 
 	mux := http.NewServeMux()
 
+	mux.Handle(
+		"GET /swagger/",
+		httpSwagger.Handler(
+			httpSwagger.URL("/swagger/doc.json"),
+		),
+	)
+	
 	mux.Handle("GET /rooms", authenticated(s.listRooms))
 	mux.Handle(
 		"POST /rooms",
@@ -54,10 +66,25 @@ func (s *Server) NewRouter() http.Handler {
 	return loggingMiddleware(s.Logger, mux)
 }
 
+// health godoc
+// @Summary Проверка работоспособности сервиса
+// @Tags Health
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Router /healthz [get]
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// List rooms godoc
+// @Summary Получение всех комнат
+// @Description Все созданные комнаты
+// @Tags Rooms
+// @Produce json
+// @Success 200 {array} models.Room
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /rooms [get]
 func (s *Server) listRooms(w http.ResponseWriter, r *http.Request) {
 	rooms, err := s.Rooms.List(r.Context())
 	if err != nil {
@@ -73,6 +100,20 @@ type createRoomRequest struct {
 	Equipment string `json:"equipment"`
 }
 
+// Create room godoc
+// @Summary Создание комнаты
+// @Description Создание комнаты с заданными параметрами: название, вместимость (чел), оборудование. Доступно только администратору
+// @Tags Rooms
+// @Accept json
+// @Produce json
+// @Param request body createRoomRequest true "Данные комнаты"
+// @Success 201 {object} models.Room
+// @Failure 500 {object} ErrorResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /rooms [post]
 func (s *Server) createRoom(w http.ResponseWriter, r *http.Request) {
 	var req createRoomRequest
 
@@ -99,6 +140,23 @@ func (s *Server) createRoom(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, room)
 }
 
+type AvailableRoomsResponse struct {
+	AvailableRoomIDs []int64 `json:"available_room_ids"`
+}
+
+// Find available rooms godoc
+// @Summary Поиск всех доступных комнат
+// @Description Получение комнат, свободных в заданный промежуток
+// @Tags Rooms
+// @Produce json
+// @Param from query string true "Начало интервала (RFC3339)"
+// @Param to query string true "Конец интервала (RFC3339)"
+// @Success 200 {object} AvailableRoomsResponse
+// @Failure 500 {object} ErrorResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /rooms/available [get]
 func (s *Server) findAvailableRooms(w http.ResponseWriter, r *http.Request) {
 	from, to, err := parseInterval(r)
 	if err != nil {
@@ -130,6 +188,18 @@ func (s *Server) findAvailableRooms(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"available_room_ids": free})
 }
 
+// Room calendar godoc
+// @Summary Получение календаря бронирований для отдельной комнаты
+// @Description Получение всех бронирований, в том числе отмененнных
+// @Tags Rooms
+// @Produce json
+// @Param id path int true "ID комнаты"
+// @Success 200 {array} models.Booking
+// @Failure 500 {object} ErrorResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /rooms/{id}/calendar [get]
 func (s *Server) roomCalendar(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -156,6 +226,18 @@ func (s *Server) roomCalendar(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, bookings)
 }
 
+// Room calendar active godoc
+// @Summary Получение календаря активных бронирований для отдельной комнаты
+// @Description Получение только активных бронирований
+// @Tags Rooms
+// @Produce json
+// @Param id path int true "ID комнаты"
+// @Success 200 {array} models.Booking
+// @Failure 500 {object} ErrorResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /rooms/{id}/active [get]
 func (s *Server) roomCalendarActive(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -192,6 +274,21 @@ type createBookingRequest struct {
 	EndTime   time.Time `json:"end_time"`
 }
 
+// Create booking godoc
+// @Summary Создание бронирования
+// @Description Создание бронирования с заданными параметрами: ID комнаты, время начала, время конца. Доступно всем авторзованным пользователям
+// @Tags Bookings
+// @Accept json
+// @Produce json
+// @Param request body createBookingRequest true "Данные бронирования"
+// @Success 201 {object} models.Booking
+// @Failure 500 {object} ErrorResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 409 {object} ErrorResponse
+// @Failure 422 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /bookings [post]
 func (s *Server) createBooking(w http.ResponseWriter, r *http.Request) {
 	var req createBookingRequest
 	userID, ok := UserIDFromContext(r.Context())
@@ -237,6 +334,24 @@ func (s *Server) createBooking(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, b)
 }
 
+// Update booking godoc
+// @Summary Изменение бронирования
+// @Description Изменение бронирования с заданными параметрами: ID комнаты, время начала, время конца. Доступно всем авторзованным пользователям
+// @Tags Bookings
+// @Accept json
+// @Produce json
+// @Param request body createBookingRequest true "Данные бронирования"
+// @Param id path int true "ID бронирования"
+// @Success 200 {object} models.Booking
+// @Failure 500 {object} ErrorResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 409 {object} ErrorResponse
+// @Failure 422 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /bookings/{id} [put]
 func (s *Server) updateBooking(w http.ResponseWriter, r *http.Request) {
 	userID, ok := UserIDFromContext(r.Context())
 	if !ok {
@@ -309,6 +424,18 @@ func (s *Server) updateBooking(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, b)
 }
 
+// Cancel booking godoc
+// @Summary Отмена бронирования
+// @Description Отмена бронирования. Доступна только создателю бронирования
+// @Tags Bookings
+// @Param id path int true "ID бронирования"
+// @Success 204
+// @Failure 500 {object} ErrorResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /bookings/{id} [delete]
 func (s *Server) cancelBooking(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
