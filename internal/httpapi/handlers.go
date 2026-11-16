@@ -40,7 +40,7 @@ func (s *Server) NewRouter() http.Handler {
 			httpSwagger.URL("/swagger/doc.json"),
 		),
 	)
-	
+
 	mux.Handle("GET /rooms", authenticated(s.listRooms))
 	mux.Handle(
 		"POST /rooms",
@@ -285,6 +285,7 @@ type createBookingRequest struct {
 // @Failure 500 {object} ErrorResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 401 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
 // @Failure 409 {object} ErrorResponse
 // @Failure 422 {object} ErrorResponse
 // @Security BearerAuth
@@ -326,6 +327,10 @@ func (s *Server) createBooking(w http.ResponseWriter, r *http.Request) {
 	if err := s.Bookings.Create(r.Context(), &b); err != nil {
 		if errors.Is(err, myErrors.ErrOverlap) {
 			writeError(w, http.StatusConflict, err)
+			return
+		}
+		if errors.Is(err, myErrors.ErrNotFound) {
+			writeError(w, http.StatusNotFound, myErrors.ErrNotFound)
 			return
 		}
 		writeError(w, http.StatusInternalServerError, err)
