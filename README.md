@@ -1,3 +1,4 @@
+[![Go Tests](https://github.com/AnneeAvakyan/meeting-rooms/actions/workflows/go-tests.yml/badge.svg)](https://github.com/AnneeAvakyan/meeting-rooms/actions/workflows/go-tests.yml)
 # Переговорка — сервис бронирования переговорных комнат
 
 REST API на Go для управления переговорными комнатами и их бронированием.
@@ -5,7 +6,6 @@ REST API на Go для управления переговорными комн
 Сервис позволяет сотрудникам просматривать переговорные, находить свободные помещения, создавать, изменять и отменять собственные бронирования. Администраторы дополнительно могут создавать переговорные комнаты.
 
 Реализованы JWT-аутентификация, разграничение доступа по ролям и проверка пересечений бронирований по времени.
-[![Go Tests](https://github.com/AnneeAvakyan/meeting-rooms/actions/workflows/go-tests.yml/badge.svg)](https://github.com/AnneeAvakyan/meeting-rooms/actions/workflows/go-tests.yml)
 
 ## Функциональность
 
