@@ -12,5 +12,6 @@ type BookingRepository interface {
 	Update(ctx context.Context, b *models.Booking) error
 	Cancel(ctx context.Context, userID int64, id int64) error
 	ListByRoom(ctx context.Context, roomID int64) ([]models.Booking, error)
+	ListActiveBookingsByRoom(ctx context.Context, roomID int64) ([]models.Booking, error)
 	ListAll(ctx context.Context) ([]models.Booking, error)
 }

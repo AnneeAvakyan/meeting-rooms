@@ -170,3 +170,14 @@ func (r *BookingRepositoryPostgres) ListAll(ctx context.Context) ([]models.Booki
 	}
 	return pgx.CollectRows(rows, pgx.RowToStructByName[models.Booking])
 }
+
+func (r *BookingRepositoryPostgres) ListActiveBookingsByRoom(ctx context.Context, roomID int64) ([]models.Booking, error) {
+	rows, err := r.pool.Query(ctx, `SELECT id, user_id, status, start_time, end_time, room_id, created_at  
+	FROM bookings
+	WHERE status = 'active'
+	AND room_id = $1`, roomID)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowToStructByName[models.Booking])
+}

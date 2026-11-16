@@ -39,7 +39,8 @@ func (s *Server) NewRouter() http.Handler {
 		),
 	)
 	mux.Handle("GET /rooms/available", authenticated(s.findAvailableRooms))
-	mux.Handle("GET /rooms/{id}/calendar", authenticated(s.roomCalendar))
+	mux.Handle("GET /rooms/{id}/calendar", authenticated(s.roomCalendar))     // тут получение всех броней одной комнаты
+	mux.Handle("GET /rooms/{id}/active", authenticated(s.roomCalendarActive)) // а тут только активные брони
 
 	mux.Handle("POST /bookings", authenticated(s.createBooking))
 	mux.Handle("PUT /bookings/{id}", authenticated(s.updateBooking))
@@ -135,8 +136,50 @@ func (s *Server) roomCalendar(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("invalid room id"))
 		return
 	}
+
+	_, err = s.Rooms.GetByID(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, myErrors.ErrNotFound) {
+			writeError(w, http.StatusNotFound, myErrors.ErrNotFound)
+			return
+		}
+
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
 	bookings, err := s.Bookings.ListByRoom(r.Context(), id)
 	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, bookings)
+}
+
+func (s *Server) roomCalendarActive(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("invalid room id"))
+		return
+	}
+
+	_, err = s.Rooms.GetByID(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, myErrors.ErrNotFound) {
+			writeError(w, http.StatusNotFound, myErrors.ErrNotFound)
+			return
+		}
+
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	bookings, err := s.Bookings.ListActiveBookingsByRoom(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, myErrors.ErrNotFound) {
+			writeError(w, http.StatusNotFound, errors.New("no bookings for this room"))
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
