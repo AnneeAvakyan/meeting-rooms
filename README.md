@@ -1,5 +1,5 @@
-[![Go Tests](https://github.com/AnneeAvakyan/meeting-rooms/actions/workflows/go-tests.yml/badge.svg)](https://github.com/AnneeAvakyan/meeting-rooms/actions/workflows/go-tests.yml)
 # Переговорка — сервис бронирования переговорных комнат
+[![Go Tests](https://github.com/AnneeAvakyan/meeting-rooms/actions/workflows/go-tests.yml/badge.svg)](https://github.com/AnneeAvakyan/meeting-rooms/actions/workflows/go-tests.yml)
 
 REST API на Go для управления переговорными комнатами и их бронированием.
 
